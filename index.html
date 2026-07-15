@@ -87,7 +87,7 @@ a:hover { color: #c00; }
         <div class="site-sub">Pāṇinian rule-based junction · 30 rules · IAST romanization</div>
       </div>
       <div class="section">
-        <div class="ex-label">Examples —</div>
+        <div class="ex-label">Examples</div>
         <div class="ex-links" id="exLinks"></div>
       </div>
       <div class="section">
@@ -101,7 +101,7 @@ a:hover { color: #c00; }
         </div>
       </div>
       <div class="err-msg" id="errMsg"></div>
-      <div class="no-match" id="noMatch">No sandhi rule applies. The words may be juxtaposed as-is (Pāṇini: no rule = no change).</div>
+      <div class="no-match" id="noMatch">No sandhi rule applies. The words may be juxtaposed as-is.</div>
       <div class="result-box" id="resultBox">
         <div class="result-output" id="resultOut"></div>
         <div class="result-meta">Rule: <a id="resultRuleLink" href="#">—</a></div>
@@ -128,7 +128,7 @@ a:hover { color: #c00; }
       </div>
     </div>
     <div class="sidebar">
-      <div class="sidebar-title">All rules</div>
+      <div class="sidebar-title">All rules (30)</div>
       <div id="sidebarRules"></div>
     </div>
   </div>
@@ -220,7 +220,7 @@ const RULES=[
    desc:"Visarga before a voiced consonant or vowel: after a-stems the visarga drops, leaving the bare vowel.",
    example:{devanagari:"रामो वदति",source:"Classical Sanskrit prose",iast:"rāmaḥ + vadati → rāmo vadati (aḥ + v → o)",note:"Before vowels: saḥ + asti → so'sti; the short a may also elide"},
    panini:"Reflects the history of PIE *-os endings: *-os → *-aḥ (Sanskrit) → -a (before voiced). The weakening path s → visarga → zero is triggered by the sonority of the following sound.",
-   test(w1,w2){if(!w1.endsWith('ḥ'))return null;const vd=['b','bh','d','dh','g','gh','j','jh','ḍ','ḍh','v','m','n','ṇ','ñ','ṅ','r','l','y','h'];const s2=w2[0];if(!vd.includes(s2)&&!isVowel(s2))return null;const stem=w1.slice(0,-1);const lastV=endsWith(stem,VOWELS);if(!lastV)return null;return{stem,lastV,s2,isVow:isVowel(s2)};},
+   test(w1,w2){if(!w1.endsWith('ḥ'))return null;const vd=['b','bh','d','dh','g','gh','j','jh','ḍ','ḍh','v','m','n','ṇ','ñ','ṅ','r','l','y','h'];const s2=w2[0];if(!vd.includes(s2)&&!isVowel(s2))return null;const stem=w1.slice(0,-1);const lastV=endsWith(stem,VOWELS);if(!lastV)return null;const rephiStems=['puna','anta','bahu','sva'];if(rephiStems.some(r=>stem.endsWith(r)))return null;return{stem,lastV,s2,isVow:isVowel(s2)};},
    apply(w1,w2,m){if(SHORT_A.includes(m.lastV)){return{output:w1.slice(0,-1)+(m.isVow?'':' ')+w2,steps:['aḥ before voiced /'+m.s2+'/','Visarga drops, /a/ retained']};}return{output:w1.slice(0,-1)+w2,steps:['āḥ before voiced /'+m.s2+'/','Visarga drops, long /ā/ retained']};}},
 
   {id:"P8.2.30",name:"r/s + r → visarga",type:"Visarga sandhi",priority:11,
@@ -260,7 +260,7 @@ const RULES=[
    desc:"Final n/m before a stop assimilates to the nasal of that stop's varga: velars→ṅ, palatals→ñ, retroflexes→ṇ, dentals→n, labials→m.",
    example:{devanagari:"तान् जनान्",source:"Bhagavad Gītā 1.1",iast:"tān + janān → tāñ janān (n+j → ñ, palatal varga)",note:"Also: tam + karotī → taṃ karotī (anusvāra before velars)"},
    panini:"Pāṇini's varga system organizes stops by place of articulation into five classes, each with a corresponding nasal. This rule enforces total place assimilation — the nasal takes the exact place of the following stop.",
-   test(w1,w2){const nas={k:'ṅ',kh:'ṅ',g:'ṅ',gh:'ṅ',c:'ñ',ch:'ñ',j:'ñ',jh:'ñ',ṭ:'ṇ',ṭh:'ṇ',ḍ:'ṇ',ḍh:'ṇ',t:'n',th:'n',d:'n',dh:'n',p:'m',ph:'m',b:'m',bh:'m'};if(!w1.endsWith('n')&&!w1.endsWith('m'))return null;const s2=w2[0];if(nas[s2])return{finalN:w1.slice(-1),s2,result:nas[s2]};return null;},
+   test(w1,w2){const nas={k:'ṅ',kh:'ṅ',g:'ṅ',gh:'ṅ',c:'ñ',ch:'ñ',j:'ñ',jh:'ñ',ṭ:'ṇ',ṭh:'ṇ',ḍ:'ṇ',ḍh:'ṇ',t:'n',th:'n',d:'n',dh:'n',p:'m',ph:'m',b:'m',bh:'m'};if(!w1.endsWith('n')&&!w1.endsWith('m'))return null;const finalN=w1.slice(-1);const s2=w2[0];if(nas[s2]&&nas[s2]!==finalN)return{finalN,s2,result:nas[s2]};return null;},
    apply(w1,w2,m){return{output:w1.slice(0,-1)+m.result+w2,steps:['/'+m.finalN+'/ before stop /'+m.s2+'/','Nasal assimilates to varga of /'+m.s2+'/','/'+m.finalN+'/ → /'+m.result+'/']};}},
 
   {id:"P8.4.58",name:"Jaśtva (before voiced aspirates)",type:"Consonant sandhi",priority:16,
@@ -284,7 +284,7 @@ const RULES=[
    desc:"Final m before any consonant optionally becomes anusvāra (ṃ) — a moraic nasal realized at the place of the following consonant.",
    example:{devanagari:"अहं ब्रह्म अस्मि",source:"Bṛhadāraṇyaka Upaniṣad 1.4.10 (mahāvākya)",iast:"aham + brahma → ahaṃ brahma",note:"Anusvāra is one of the four mahāvākyas — 'I am Brahman'"},
    panini:"Mo'nusvāraḥ: 'm becomes anusvāra.' Anusvāra is a moraic nasal — it contributes to syllable weight but lacks full consonantal closure. It assimilates to the exact place of the following consonant.",
-   test(w1,w2){if(!w1.endsWith('m'))return null;const cons=['k','kh','g','gh','c','ch','j','jh','ṭ','ṭh','ḍ','ḍh','t','th','d','dh','p','ph','b','bh','y','r','l','v','ś','ṣ','s','h','n','m','ṅ','ñ','ṇ'];if(cons.includes(w2[0]))return{s2:w2[0]};return null;},
+   test(w1,w2){if(!w1.endsWith('m'))return null;const cons=['k','kh','g','gh','c','ch','j','jh','ṭ','ṭh','ḍ','ḍh','t','th','d','dh','p','ph','b','bh','y','r','l','v','ś','ṣ','s','h','n','ṅ','ñ','ṇ'];if(cons.includes(w2[0]))return{s2:w2[0]};return null;},
    apply(w1,w2,m){return{output:w1.slice(0,-1)+'ṃ'+w2,steps:['Final /m/ before consonant /'+m.s2+'/','Mo\'nusvāraḥ: m → anusvāra /ṃ/']};}},
 
   {id:"P8.4.62",name:"Khari ca (final devoicing)",type:"Consonant sandhi",priority:22,
@@ -303,7 +303,7 @@ const RULES=[
    test(w1,w2){const retro=['ṛ','ṝ','r','ṣ'];const lastR=retro.find(r=>w1.endsWith(r));if(!lastR)return null;if(w2.startsWith('n'))return{trigger:lastR};return null;},
    apply(w1,w2,m){return{output:w1+w2.replace(/^n/,'ṇ'),steps:['Retroflex trigger /'+m.trigger+'/ at word 1 end','Dental /n/ at word 2 start','Ṇatva: /n/ → /ṇ/']};}},
 
-  {id:"P8.4.63",name:"Ścutva (palatal assimilation)",type:"Consonant sandhi",priority:24,
+  {id:"P8.4.63",name:"Ścutva (palatal assimilation)",type:"Consonant sandhi",priority:13,
    sutra:"ścut",
    desc:"Dental stops t, th, d, dh, n before a palatal c, ch, j, jh, ś assimilate to the palatal series: t→c, d→j, n→ñ.",
    example:{devanagari:"सच्चित्",source:"Compound: sat + cit",iast:"sat + cit → sac cit (t+c → c, palatal assimilation)",note:"Also: tat + jñānam → taj jñānam (t+j → j); very common in Sanskrit"},
