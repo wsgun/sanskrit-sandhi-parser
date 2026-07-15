@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sanskrit Sandhi Parser</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Times New Roman", Times, serif; font-size: 14px; color: #000; background: #fff; line-height: 1.5; }
+a { color: #00c; text-decoration: underline; cursor: pointer; }
+a:hover { color: #c00; }
+.page { max-width: 820px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+.layout { display: grid; grid-template-columns: 1fr 190px; gap: 2rem; align-items: start; }
+.site-header { border-bottom: 2px solid #777; padding-bottom: 0.75rem; margin-bottom: 1.25rem; }
+.site-title { font-size: 20px; font-weight: bold; }
+.site-sub { font-size: 13px; color: #555; margin-top: 3px; }
+.section { margin-bottom: 1.25rem; }
+.ex-label { font-size: 13px; color: #444; margin-bottom: 4px; }
+.ex-links { display: flex; flex-wrap: wrap; column-gap: 14px; row-gap: 2px; }
+.ex-links a { font-size: 13px; }
+.field-row { display: flex; align-items: center; margin-bottom: 6px; }
+.field-label { font-size: 13px; min-width: 100px; }
+.word-input { font-family: "Times New Roman", Times, serif; font-size: 14px; padding: 2px 5px; border: 1px solid #777; border-radius: 0; width: 200px; background: #fff; color: #000; }
+.word-input:focus { outline: 2px solid #00c; outline-offset: 0; }
+.word-input.active-field { background: #fffff0; }
+.kbd-label { font-size: 12px; color: #555; margin-bottom: 4px; }
+.kbd-row { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 10px; }
+.kbd-btn { font-family: "Times New Roman", Times, serif; font-size: 13px; padding: 1px 7px; border: 1px solid #888; border-radius: 0; background: #e8e8e0; cursor: pointer; color: #000; min-width: 28px; text-align: center; }
+.kbd-btn:hover { background: #d0d0c8; }
+.kbd-btn:active { background: #b8b8b0; }
+.btn-row { display: flex; gap: 5px; margin-top: 10px; margin-left: 100px; }
+.submit-btn { font-family: "Times New Roman", Times, serif; font-size: 13px; padding: 3px 14px; border: 2px outset #bbb; border-radius: 0; background: #d4d0c8; cursor: pointer; color: #000; font-weight: bold; }
+.submit-btn:active { border-style: inset; }
+.clear-btn { font-family: "Times New Roman", Times, serif; font-size: 13px; padding: 3px 14px; border: 2px outset #bbb; border-radius: 0; background: #d4d0c8; cursor: pointer; color: #000; }
+.clear-btn:active { border-style: inset; }
+.result-box { border: 1px solid #777; background: #f0f0e8; padding: 12px 14px; margin-top: 1.25rem; display: none; }
+.result-box.show { display: block; }
+.result-output { font-size: 24px; font-weight: bold; margin-bottom: 8px; letter-spacing: 0.02em; }
+.result-meta { font-size: 13px; margin-bottom: 3px; }
+.result-meta a { font-weight: bold; }
+.result-sutra { font-size: 12px; color: #555; font-style: italic; margin-bottom: 4px; }
+.result-type { font-size: 12px; color: #555; }
+.hr { border: none; border-top: 1px solid #bbb; margin: 8px 0; }
+.conflict-note { font-size: 12px; color: #800; background: #fff8e0; border: 1px solid #e8c840; padding: 5px 8px; margin-bottom: 8px; }
+.steps-label { font-size: 12px; color: #555; margin-bottom: 3px; }
+.steps-ol { font-size: 13px; padding-left: 18px; color: #000; line-height: 1.7; }
+.explain-box { margin-top: 8px; }
+.explain-text { font-size: 13px; color: #111; line-height: 1.7; }
+.explain-panini { font-size: 12px; color: #444; margin-top: 6px; line-height: 1.6; border-left: 3px solid #bbb; padding-left: 8px; font-style: italic; }
+.no-match { font-size: 13px; color: #800; margin-top: 1rem; display: none; }
+.no-match.show { display: block; }
+.err-msg { font-size: 13px; color: #c00; margin-top: 8px; display: none; }
+.err-msg.show { display: block; }
+
+/* Rule detail panel */
+.rule-detail { border: 1px solid #777; background: #f0f0e8; padding: 12px 14px; margin-top: 1.25rem; display: none; }
+.rule-detail.show { display: block; }
+.rd-header { font-size: 15px; font-weight: bold; margin-bottom: 2px; }
+.rd-sutra { font-size: 12px; color: #555; font-style: italic; margin-bottom: 8px; }
+.rd-hr { border: none; border-top: 1px solid #bbb; margin: 7px 0; }
+.rd-desc { font-size: 13px; color: #111; line-height: 1.7; margin-bottom: 8px; }
+.rd-example { margin-bottom: 8px; }
+.rd-example-label { font-size: 12px; color: #555; margin-bottom: 4px; }
+.rd-devanagari { font-size: 15px; margin-bottom: 1px; }
+.rd-source { font-size: 11px; color: #555; font-style: italic; }
+.rd-iast { font-size: 13px; color: #333; margin: 3px 0; }
+.rd-sandhi-note { font-size: 12px; color: #00c; margin-top: 3px; font-style: italic; }
+.rd-panini { font-size: 12px; color: #444; line-height: 1.6; border-left: 3px solid #bbb; padding-left: 8px; font-style: italic; }
+
+/* Sidebar */
+.sidebar { border: 1px solid #aaa; background: #e8f0e8; padding: 10px; font-size: 12px; }
+.sidebar-title { font-weight: bold; font-size: 13px; margin-bottom: 6px; border-bottom: 1px solid #aaa; padding-bottom: 4px; }
+.sidebar-rule { display: block; color: #00c; text-decoration: underline; cursor: pointer; margin-bottom: 2px; font-size: 12px; line-height: 1.5; }
+.sidebar-rule:hover { color: #c00; }
+.sidebar-rule.highlighted { color: #c00; font-weight: bold; }
+.rule-type-label { font-size: 11px; color: #555; margin: 6px 0 2px; font-style: italic; }
+.footer { border-top: 2px solid #777; margin-top: 2rem; padding-top: 6px; font-size: 12px; color: #555; text-align: center; }
+@media (max-width: 600px) { .layout { grid-template-columns: 1fr; } .btn-row { margin-left: 0; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="layout">
+    <div class="main">
+      <div class="site-header">
+        <div class="site-title">Sanskrit Sandhi Parser</div>
+        <div class="site-sub">Pāṇinian rule-based junction · 30 rules · IAST romanization</div>
+      </div>
+      <div class="section">
+        <div class="ex-label">Examples —</div>
+        <div class="ex-links" id="exLinks"></div>
+      </div>
+      <div class="section">
+        <div class="field-row"><span class="field-label">First word:</span><input class="word-input" id="w1" placeholder="e.g. deva" autocomplete="off" spellcheck="false" /></div>
+        <div class="field-row"><span class="field-label">Second word:</span><input class="word-input" id="w2" placeholder="e.g. indra" autocomplete="off" spellcheck="false" /></div>
+        <div class="kbd-label" style="margin-top:8px;">IAST characters — click to insert into active field:</div>
+        <div class="kbd-row" id="kbdRow"></div>
+        <div class="btn-row">
+          <button class="submit-btn" onclick="runParser()">Submit</button>
+          <button class="clear-btn" onclick="clearAll()">Clear</button>
+        </div>
+      </div>
+      <div class="err-msg" id="errMsg"></div>
+      <div class="no-match" id="noMatch">No sandhi rule applies. The words may be juxtaposed as-is (Pāṇini: no rule = no change).</div>
+      <div class="result-box" id="resultBox">
+        <div class="result-output" id="resultOut"></div>
+        <div class="result-meta">Rule: <a id="resultRuleLink" href="#">—</a></div>
+        <div class="result-sutra" id="resultSutra"></div>
+        <div class="result-type" id="resultType"></div>
+        <div class="hr"></div>
+        <div class="conflict-note" id="conflictNote" style="display:none"></div>
+        <div class="steps-label">Derivation steps:</div>
+        <ol class="steps-ol" id="stepsList"></ol>
+        <div class="hr"></div>
+        <div class="explain-box">
+          <div class="explain-text" id="explainText"></div>
+          <div class="explain-panini" id="explainPanini"></div>
+        </div>
+      </div>
+      <div class="rule-detail" id="ruleDetail">
+        <div class="rd-header" id="rdHeader"></div>
+        <div class="rd-sutra" id="rdSutra"></div>
+        <div class="rd-hr"></div>
+        <div class="rd-desc" id="rdDesc"></div>
+        <div class="rd-example" id="rdExample"></div>
+        <div class="rd-hr"></div>
+        <div class="rd-panini" id="rdPanini"></div>
+      </div>
+    </div>
+    <div class="sidebar">
+      <div class="sidebar-title">All rules</div>
+      <div id="sidebarRules"></div>
+    </div>
+  </div>
+  <div class="footer">Sanskrit Sandhi Parser &copy; 2025 wsgun</div>
+</div>
+<script>
+const VOWELS=['a','ā','i','ī','u','ū','ṛ','ṝ','ḷ','e','ai','o','au'];
+const SHORT_A=['a','ā'],SHORT_I=['i','ī'],SHORT_U=['u','ū'],SHORT_R=['ṛ','ṝ'];
+const ALL_VOWELS_SET=new Set(VOWELS);
+function endsWith(w,ss){for(const s of [...ss].sort((a,b)=>b.length-a.length)){if(w.endsWith(s))return s;}return null;}
+function startsWith(w,ss){for(const s of [...ss].sort((a,b)=>b.length-a.length)){if(w.startsWith(s))return s;}return null;}
+function isVowel(s){return ALL_VOWELS_SET.has(s);}
+
+const RULES=[
+  {id:"P6.1.101",name:"Savarṇadīrgha",type:"Vowel sandhi",priority:1,
+   sutra:"akaḥ savarṇe dīrghaḥ",
+   desc:"Two like-class vowels (savarṇa) coalesce into a single long vowel: a/ā+a/ā→ā, i/ī+i/ī→ī, u/ū+u/ū→ū, ṛ/ṝ+ṛ/ṝ→ṝ. This is the highest-priority vowel sandhi rule and blocks all others when both vowels are of the same class.",
+   example:{devanagari:"तस्य एष आत्मा",source:"Bṛhadāraṇyaka Upaniṣad 4.4.5",iast:"tasya eṣa ātmā → tasyaiṣa ātmā",note:"a + e → ai (vṛddhi); but when a+a meet: brahma + aṇḍa → brahmāṇḍa, a+a → ā"},
+   panini:"Takes priority over all guṇa and vṛddhi rules. Applies both externally (word boundary) and internally (morpheme boundary). The term savarṇa — 'of the same colour' — is Pāṇini's term for phonemes sharing place and manner features.",
+   test(w1,w2){const e1=endsWith(w1,VOWELS),s2=startsWith(w2,VOWELS);if(!e1||!s2)return null;const pairs=[['a','ā'],['i','ī'],['u','ū'],['ṛ','ṝ']];for(const g of pairs){if(g.includes(e1)&&g.includes(s2))return{e1,s2,result:g[1],group:g};}return null;},
+   apply(w1,w2,m){return{output:w1.slice(0,-m.e1.length)+m.result+w2.slice(m.s2.length),steps:['Word 1 ends in /'+m.e1+'/','Word 2 begins with /'+m.s2+'/','Both are savarṇa {'+m.group.join(', ')+'}','Coalescence → long /'+m.result+'/']};}},
+
+  {id:"P6.1.87",name:"Ādguṇaḥ",type:"Vowel sandhi",priority:2,
+   sutra:"ādguṇaḥ",
+   desc:"a/ā + i/ī → e; a/ā + u/ū → o; a/ā + ṛ/ṝ → ar. The a-class vowel merges with the following vowel to produce the guṇa (mid) grade. The most pervasive vowel sandhi in Sanskrit.",
+   example:{devanagari:"योगश्चित्तवृत्तिनिरोधः",source:"Yoga Sūtras 1.2",iast:"yoga + aś citta → yogaś citta",note:"In compound: mahā + indra → mahendra (ā+i → e, guṇa)"},
+   panini:"Sūtra ādguṇaḥ ('from ā, guṇa'). The place of articulation of the second vowel determines the guṇa result: i-class → e (palatal), u-class → o (labial), ṛ-class → ar (retroflex). Underlies an enormous number of Sanskrit compound forms.",
+   test(w1,w2){const e1=endsWith(w1,SHORT_A),s2=startsWith(w2,VOWELS);if(!e1||!s2)return null;if(SHORT_I.includes(s2))return{e1,s2,result:'e'};if(SHORT_U.includes(s2))return{e1,s2,result:'o'};if(SHORT_R.includes(s2))return{e1,s2,result:'ar'};return null;},
+   apply(w1,w2,m){return{output:w1.slice(0,-m.e1.length)+m.result+w2.slice(m.s2.length),steps:['/'+m.e1+'/ (a-class) + /'+m.s2+'/','Guṇa substitution: ādguṇaḥ','/'+m.e1+'/ + /'+m.s2+'/ → /'+m.result+'/']};}},
+
+  {id:"P6.1.88",name:"Vṛddhir eci",type:"Vowel sandhi",priority:3,
+   sutra:"vṛddhir eci",
+   desc:"a/ā + e/ai → ai; a/ā + o/au → au. The a-class before a diphthong produces the vṛddhi (highest) vowel grade.",
+   example:{devanagari:"तथा च उक्तम्",source:"Mahābhārata",iast:"tathā + eva → tathaiva (ā+e → ai, vṛddhi)",note:"eka + ekā → ekaika; tatra + api → tatraapi (blocked by pragṛhya)"},
+   panini:"Sūtra vṛddhir eci ('vṛddhi before ec'). The ec-pratyāhāra covers {e, o, ai, au}. Ranked after guṇa but their environments never overlap: guṇa applies before i/u/ṛ, vṛddhi before diphthongs.",
+   test(w1,w2){const e1=endsWith(w1,SHORT_A),s2=startsWith(w2,VOWELS);if(!e1||!s2)return null;if(['e','ai'].includes(s2))return{e1,s2,result:'ai'};if(['o','au'].includes(s2))return{e1,s2,result:'au'};return null;},
+   apply(w1,w2,m){return{output:w1.slice(0,-m.e1.length)+m.result+w2.slice(m.s2.length),steps:['/'+m.e1+'/ (a-class) + diphthong /'+m.s2+'/','Vṛddhi substitution: vṛddhir eci','/'+m.e1+'/ + /'+m.s2+'/ → vṛddhi /'+m.result+'/']};}},
+
+  {id:"P6.1.77",name:"Iko yaṇ aci",type:"Vowel sandhi",priority:4,
+   sutra:"iko yaṇ aci",
+   desc:"Before a dissimilar vowel: i/ī → y, u/ū → v, ṛ/ṝ → r, ḷ → l. High vowels become their corresponding semi-vowels (yaṇ), eliminating hiatus.",
+   example:{devanagari:"मुनिरागच्छति",source:"Classical Sanskrit grammar",iast:"muni + āgacchati → munyāgacchati",note:"i → y before ā; similarly: vāyu + iva → vāyuriva (u→v)"},
+   panini:"Iko yaṇ aci: 'ik-vowels become yaṇ before ac (any vowel).' Blocked when both vowels are savarṇa (P6.1.101 applies). The yaṇ pratyāhāra covers {y, v, r, l} — the four Sanskrit semi-vowels, each the glide counterpart of a high vowel.",
+   test(w1,w2){const e1=endsWith(w1,VOWELS),s2=startsWith(w2,VOWELS);if(!e1||!s2)return null;const iG=['i','ī'],uG=['u','ū'],rG=['ṛ','ṝ'],lG=['ḷ'];const same=g=>g.includes(e1)&&g.includes(s2);if(same(iG)||same(uG)||same(rG))return null;const mp={};iG.forEach(x=>mp[x]='y');uG.forEach(x=>mp[x]='v');rG.forEach(x=>mp[x]='r');lG.forEach(x=>mp[x]='l');if(mp[e1])return{e1,s2,result:mp[e1]};return null;},
+   apply(w1,w2,m){return{output:w1.slice(0,-m.e1.length)+m.result+w2,steps:['/'+m.e1+'/ before dissimilar vowel /'+m.s2+'/','Yaṇ substitution (iko yaṇ aci)','/'+m.e1+'/ → /'+m.result+'/']};}},
+
+  {id:"P6.1.78",name:"Eco'yavāyāvaḥ",type:"Vowel sandhi",priority:5,
+   sutra:"eco'yavāyāvaḥ",
+   desc:"Before a dissimilar vowel, diphthongs decompose: e→ay, ai→āy, o→av, au→āv. The reverse of guṇa formation.",
+   example:{devanagari:"ने अत्र",source:"Ṛgveda",iast:"ne + atra → nayatra (e→ay before a)",note:"go + aśva → gavāśva (o→av); this is the decomposition of o back into a+v"},
+   panini:"The sūtra name lists all outputs: a-y, ā-y, a-v, ā-v. Diphthongs 'open out' into their constituents before a following vowel. Interacts with guṇa/vṛddhi: those rules create diphthongs from a+vowel; this rule decomposes them at word boundaries.",
+   test(w1,w2){const e1=endsWith(w1,VOWELS),s2=startsWith(w2,VOWELS);if(!e1||!s2)return null;const mp={e:'ay',ai:'āy',o:'av',au:'āv'};if(mp[e1])return{e1,s2,result:mp[e1]};return null;},
+   apply(w1,w2,m){return{output:w1.slice(0,-m.e1.length)+m.result+w2,steps:['Diphthong /'+m.e1+'/ before vowel /'+m.s2+'/','Decomposition: eco\'yavāyāvaḥ','/'+m.e1+'/ → /'+m.result+'/']};}},
+
+  {id:"P6.1.109",name:"Pragṛhya (no sandhi)",type:"Vowel sandhi",priority:6,
+   sutra:"ete'i",
+   desc:"Dual endings -ī, -ū, -e are pragṛhya — exempt from sandhi. The vowels are retained as-is before any following vowel. An avagraha (ʼ) may mark the suppressed junction.",
+   example:{devanagari:"हरी एतौ",source:"Pāṇini, Aṣṭādhyāyī 1.1.11",iast:"harī etau — no sandhi; ī is dual ending, pragṛhya",note:"Without this exception, harī + etau would incorrectly yield *hary etau"},
+   panini:"P6.1.125–129 lists pragṛhya contexts. This is one of Pāṇini's explicit exception rules (apakarṣa). Dual endings are phonologically marked as immune to sandhi — a grammatical rather than phonological condition.",
+   test(w1,w2){const e1=endsWith(w1,VOWELS),s2=startsWith(w2,VOWELS);if(!e1||!s2)return null;const pragrhya=['ī','ū','e'];if(pragrhya.includes(e1)&&w1.length>1){const pen=w1[w1.length-2];if(['k','g','c','j','ṭ','ḍ','t','d','p','b','n','m','r','l','v','y','h','ś','ṣ','s','ñ','ṅ','ṇ'].includes(pen))return{e1,s2};}return null;},
+   apply(w1,w2,m){return{output:w1+' '+w2,steps:['Word 1 ends in dual ending /'+m.e1+'/','Pragṛhya exception: sandhi suppressed','Words juxtaposed (avagraha may appear in writing)']};}},
+
+  {id:"P6.1.113",name:"Pūrvarūpa (avagraha)",type:"Vowel sandhi",priority:7,
+   sutra:"ato rora",
+   desc:"e/o + following a: the a is elided and an avagraha (ʼ) marks the elision. Only the first vowel (pūrvarūpa, 'former form') survives.",
+   example:{devanagari:"सोऽपि",source:"Bhagavad Gītā (common form)",iast:"sa + api → so'pi (o+a: a elides, avagraha marks it)",note:"te + api → te'pi; ko + api → ko'pi — extremely common in Sanskrit prose"},
+   panini:"P6.1.113 accounts for the apostrophe-like avagraha mark. The elided a is 'remembered' by the avagraha, preserving the sandhi information for the reader. This rule applies whenever e/o precedes a-initial words.",
+   test(w1,w2){if((w1.endsWith('e')||w1.endsWith('o'))&&w2.startsWith('a'))return{e1:w1.slice(-1)};return null;},
+   apply(w1,w2,m){return{output:w1+'\''+w2.slice(1),steps:['/'+m.e1+'/ + /a/','Pūrvarūpa: following /a/ elides','Avagraha (ʼ) marks the elision']};}},
+
+  {id:"P8.3.15",name:"Visarga + sibilant",type:"Visarga sandhi",priority:8,
+   sutra:"khary avasāne",
+   desc:"Visarga (ḥ) before ś, ṣ, or s fully assimilates to that sibilant: ḥ+ś→śś, ḥ+ṣ→ṣṣ, ḥ+s→ss.",
+   example:{devanagari:"नमः शिवाय",source:"Śiva Pañcākṣarī (common invocation)",iast:"namaḥ + śivāya → namaś śivāya",note:"The two identical sibilants may merge into one long consonant in recitation"},
+   panini:"Part of the broader visarga rule set (P8.3.14–36). Assimilation is total: visarga is replaced by the sibilant at its place of articulation. The palatal ś, retroflex ṣ, and dental s each pull the visarga to their own position.",
+   test(w1,w2){if(!w1.endsWith('ḥ'))return null;const s=w2[0];if(['ś','ṣ','s'].includes(s))return{s};return null;},
+   apply(w1,w2,m){return{output:w1.slice(0,-1)+m.s+w2,steps:['Visarga /ḥ/ before sibilant /'+m.s+'/','Total assimilation at place of articulation','ḥ → /'+m.s+'/']};}},
+
+  {id:"P8.3.34",name:"Visarga → s (before t/th)",type:"Visarga sandhi",priority:9,
+   sutra:"visarjanīyasya sa",
+   desc:"Visarga before dental t or th becomes s: ḥt→st, ḥth→sth.",
+   example:{devanagari:"नमस्ते",source:"Common Sanskrit greeting",iast:"namaḥ + te → namaste",note:"One of the most recognizable sandhi forms in Sanskrit: ḥ+t → st"},
+   panini:"Visarjanīyasya sa: 'of the visarjanīya, s.' The dental sibilant s matches the dental place of t/th, making the cluster phonologically natural. This single rule accounts for the iconic word namaste.",
+   test(w1,w2){if(!w1.endsWith('ḥ'))return null;if(w2.startsWith('t')||w2.startsWith('th'))return{s2:w2[0]};return null;},
+   apply(w1,w2,m){return{output:w1.slice(0,-1)+'s'+w2,steps:['Visarga /ḥ/ before dental /'+m.s2+'/','Visarjanīyasya sa','ḥ → /s/: cluster s'+m.s2]};}},
+
+  {id:"P8.2.66",name:"Visarga + voiced",type:"Visarga sandhi",priority:10,
+   sutra:"sasajuṣo ruḥ",
+   desc:"Visarga before a voiced consonant or vowel: after a-stems the visarga drops, leaving the bare vowel.",
+   example:{devanagari:"रामो वदति",source:"Classical Sanskrit prose",iast:"rāmaḥ + vadati → rāmo vadati (aḥ + v → o)",note:"Before vowels: saḥ + asti → so'sti; the short a may also elide"},
+   panini:"Reflects the history of PIE *-os endings: *-os → *-aḥ (Sanskrit) → -a (before voiced). The weakening path s → visarga → zero is triggered by the sonority of the following sound.",
+   test(w1,w2){if(!w1.endsWith('ḥ'))return null;const vd=['b','bh','d','dh','g','gh','j','jh','ḍ','ḍh','v','m','n','ṇ','ñ','ṅ','r','l','y','h'];const s2=w2[0];if(!vd.includes(s2)&&!isVowel(s2))return null;const stem=w1.slice(0,-1);const lastV=endsWith(stem,VOWELS);if(!lastV)return null;return{stem,lastV,s2,isVow:isVowel(s2)};},
+   apply(w1,w2,m){if(SHORT_A.includes(m.lastV)){return{output:w1.slice(0,-1)+(m.isVow?'':' ')+w2,steps:['aḥ before voiced /'+m.s2+'/','Visarga drops, /a/ retained']};}return{output:w1.slice(0,-1)+w2,steps:['āḥ before voiced /'+m.s2+'/','Visarga drops, long /ā/ retained']};}},
+
+  {id:"P8.2.30",name:"r/s + r → visarga",type:"Visarga sandhi",priority:11,
+   sutra:"ro ri",
+   desc:"Final r before initial r becomes visarga. The disallowed r-r cluster is resolved by dissimilation.",
+   example:{devanagari:"पुनः रामः",source:"Vālmīki Rāmāyaṇa (common pattern)",iast:"punar + rāmaḥ → punaḥ rāmaḥ",note:"Dissimilation: two identical r's cannot stand adjacent in Sanskrit"},
+   panini:"Ro ri: 'r becomes visarga before r.' Rare dissimilation in Pāṇini's otherwise assimilation-dominated system. The visarga marks the historical r and distinguishes this form from primary visarga.",
+   test(w1,w2){if((w1.endsWith('r')||w1.endsWith('s'))&&w2.startsWith('r'))return{finalC:w1.slice(-1)};return null;},
+   apply(w1,w2,m){return{output:w1.slice(0,-1)+'ḥ '+w2,steps:['/'+m.finalC+'/ before /r/','Dissimilation: r+r cluster disallowed','/'+m.finalC+'/ → /ḥ/']};}},
+
+  {id:"P8.3.19",name:"Rephī visarga → r",type:"Visarga sandhi",priority:12,
+   sutra:"bhobhago'gho'pūrvasya yo'śi",
+   desc:"Visarga derived from underlying r (rephī) reverts to r before voiced sounds. Applies to words like punar, antar, svar whose underlying final is r.",
+   example:{devanagari:"अन्तर् एव",source:"Upaniṣadic usage",iast:"antaḥ + eva → antar eva (rephī: ḥ reverts to r)",note:"punaḥ + api → punar api; the visarga here is historically an r"},
+   panini:"Pāṇini distinguishes rephī visarga from other types by its historical source. This encodes diachronic phonology as synchronic rule: the grammar 'knows' that punar's visarga is really an r.",
+   test(w1,w2){if(!w1.endsWith('ḥ'))return null;const stem=w1.slice(0,-1);const vd=['b','bh','d','dh','g','gh','j','jh','ḍ','ḍh','v','m','n','r','l','y','h'];if(vd.includes(w2[0])||isVowel(w2[0])){const rs=['puna','anta','bahu','sva'];for(const x of rs){if(stem.endsWith(x))return{stem,s2:w2[0]};}}return null;},
+   apply(w1,w2,m){return{output:w1.slice(0,-1)+'r'+w2,steps:['Rephī visarga (underlying /r/)','Before voiced /'+m.s2+'/','Visarga reverts to /r/']};}},
+
+  {id:"P8.3.32",name:"Visarga retained (before khar)",type:"Visarga sandhi",priority:8,
+   sutra:"khary avasāne",
+   desc:"Visarga before voiceless stops k, kh, p, ph is retained unchanged. These are khar consonants — visarga is stable before them.",
+   example:{devanagari:"नमः कमलाय",source:"Sanskrit devotional verse",iast:"namaḥ + kamalāya → namaḥ kamalāya (ḥ retained before k)",note:"Before p/ph similarly: namaḥ + pataye → namaḥ pataye"},
+   panini:"Default rule: when no specific substitution applies, visarga remains. Khary avasāne ('before khar and at pause') establishes visarga's stability before voiceless environments. The specific sibilant/dental rules take precedence where they apply.",
+   test(w1,w2){if(!w1.endsWith('ḥ'))return null;if(['k','kh','p','ph'].includes(w2[0]))return{s2:w2[0]};return null;},
+   apply(w1,w2,m){return{output:w1+' '+w2,steps:['Visarga /ḥ/ before voiceless /'+m.s2+'/','Khary avasāne: visarga retained','No change']};}},
+
+  {id:"P8.4.40",name:"Jhal jhalyam (voicing)",type:"Consonant sandhi",priority:14,
+   sutra:"jhal jhalyam",
+   desc:"Final stop assimilates in voicing to the initial consonant of the following word: voiced before voiced, voiceless before voiceless.",
+   example:{devanagari:"वाग् देवी",source:"Ṛgveda (vāk as goddess of speech)",iast:"vāk + devi → vāg devi (k+d → g, voicing)",note:"Also: tat + ca → tac ca (t+c → c, devoicing)"},
+   panini:"Jhal covers all stops and sibilants. Regressive voicing assimilation — the most common type cross-linguistically. Applies at word boundaries (bahiraṅga sandhi) and is among the most productive consonant sandhi rules.",
+   test(w1,w2){const vP={d:'t',g:'k',b:'p',j:'c',ḍ:'ṭ'};const dvP={t:'d',k:'g',p:'b',c:'j',ṭ:'ḍ'};const vless=['k','kh','c','ch','ṭ','ṭh','t','th','p','ph','ś','ṣ','s'];const vd=['g','gh','j','jh','ḍ','ḍh','d','dh','b','bh','v','m','n','r','l','y','h'];const finals=['t','d','k','g','p','b','c','j','ṭ','ḍ'];let f=null;for(const x of finals){if(w1.endsWith(x)){f=x;break;}}if(!f)return null;const s2=w2[0];if(vd.includes(s2)&&vP[f])return{finalC:f,s2,result:vP[f],dir:'voiced'};if(vless.includes(s2)&&dvP[f])return{finalC:f,s2,result:dvP[f],dir:'devoiced'};return null;},
+   apply(w1,w2,m){return{output:w1.slice(0,-m.finalC.length)+m.result+w2,steps:['Final /'+m.finalC+'/ before /'+m.s2+'/','Voicing assimilation (→'+m.dir+')','/'+m.finalC+'/ → /'+m.result+'/']};}},
+
+  {id:"P8.4.41",name:"Nasal varga assimilation",type:"Consonant sandhi",priority:15,
+   sutra:"mo'nusvāraḥ",
+   desc:"Final n/m before a stop assimilates to the nasal of that stop's varga: velars→ṅ, palatals→ñ, retroflexes→ṇ, dentals→n, labials→m.",
+   example:{devanagari:"तान् जनान्",source:"Bhagavad Gītā 1.1",iast:"tān + janān → tāñ janān (n+j → ñ, palatal varga)",note:"Also: tam + karotī → taṃ karotī (anusvāra before velars)"},
+   panini:"Pāṇini's varga system organizes stops by place of articulation into five classes, each with a corresponding nasal. This rule enforces total place assimilation — the nasal takes the exact place of the following stop.",
+   test(w1,w2){const nas={k:'ṅ',kh:'ṅ',g:'ṅ',gh:'ṅ',c:'ñ',ch:'ñ',j:'ñ',jh:'ñ',ṭ:'ṇ',ṭh:'ṇ',ḍ:'ṇ',ḍh:'ṇ',t:'n',th:'n',d:'n',dh:'n',p:'m',ph:'m',b:'m',bh:'m'};if(!w1.endsWith('n')&&!w1.endsWith('m'))return null;const s2=w2[0];if(nas[s2])return{finalN:w1.slice(-1),s2,result:nas[s2]};return null;},
+   apply(w1,w2,m){return{output:w1.slice(0,-1)+m.result+w2,steps:['/'+m.finalN+'/ before stop /'+m.s2+'/','Nasal assimilates to varga of /'+m.s2+'/','/'+m.finalN+'/ → /'+m.result+'/']};}},
+
+  {id:"P8.4.58",name:"Jaśtva (before voiced aspirates)",type:"Consonant sandhi",priority:16,
+   sutra:"jaś śase",
+   desc:"Before a voiced aspirate (gh, jh, ḍh, dh, bh), a final voiceless stop becomes voiced (but not aspirated).",
+   example:{devanagari:"सद् धर्मः",source:"Bhagavad Gītā (common compound)",iast:"sat + dharma → sad dharma (t+dh → d, jaśtva)",note:"Aspiration is NOT transferred: t+dh → d+dh, not dh+dh"},
+   panini:"Jaś pratyāhāra covers voiced non-aspirate stops {j,b,g,ḍ,d}. The rule voices the preceding stop without transferring aspiration. This distinguishes jaśtva from simple voicing assimilation (P8.4.40).",
+   test(w1,w2){const asp=['gh','jh','ḍh','dh','bh'];const dv={t:'d',k:'g',p:'b',c:'j',ṭ:'ḍ'};const fs=['t','k','p','c','ṭ'];let f=null;for(const x of fs){if(w1.endsWith(x)){f=x;break;}}if(!f)return null;for(const a of asp){if(w2.startsWith(a))return{finalC:f,asp:a,result:dv[f]};}return null;},
+   apply(w1,w2,m){return{output:w1.slice(0,-1)+m.result+w2,steps:['/'+m.finalC+'/ before voiced aspirate /'+m.asp+'/','Jaśtva: voicing without aspiration transfer','/'+m.finalC+'/ → /'+m.result+'/']};}},
+
+  {id:"P8.4.53",name:"Cha-augment",type:"Consonant sandhi",priority:17,
+   sutra:"che ca",
+   desc:"Before ch, a c is inserted after a final vowel, producing the cluster cch.",
+   example:{devanagari:"वृक्षश्छाया",source:"Classical Sanskrit prose",iast:"vṛkṣa + chāyā → vṛkṣacchāyā (vowel + ch → cch)",note:"Epenthesis: a buffer c is inserted to prevent the marked vowel+ch sequence"},
+   panini:"Che ca: 'c is also inserted before ch.' One of the few insertion (epenthesis) rules in Pāṇini's otherwise substitution-based system. Standard in classical Sanskrit; optional in Vedic.",
+   test(w1,w2){const lv=endsWith(w1,VOWELS);if(lv&&w2.startsWith('ch'))return{lastV:lv};return null;},
+   apply(w1,w2,m){return{output:w1+'c'+w2,steps:['Vowel /'+m.lastV+'/ + /ch/','Ch-augment: insert /c/','Result: ...'+m.lastV+'cch...']};}},
+
+  {id:"P8.3.23",name:"Anusvāra (ṃ) before consonants",type:"Consonant sandhi",priority:20,
+   sutra:"mo'nusvāraḥ",
+   desc:"Final m before any consonant optionally becomes anusvāra (ṃ) — a moraic nasal realized at the place of the following consonant.",
+   example:{devanagari:"अहं ब्रह्म अस्मि",source:"Bṛhadāraṇyaka Upaniṣad 1.4.10 (mahāvākya)",iast:"aham + brahma → ahaṃ brahma",note:"Anusvāra is one of the four mahāvākyas — 'I am Brahman'"},
+   panini:"Mo'nusvāraḥ: 'm becomes anusvāra.' Anusvāra is a moraic nasal — it contributes to syllable weight but lacks full consonantal closure. It assimilates to the exact place of the following consonant.",
+   test(w1,w2){if(!w1.endsWith('m'))return null;const cons=['k','kh','g','gh','c','ch','j','jh','ṭ','ṭh','ḍ','ḍh','t','th','d','dh','p','ph','b','bh','y','r','l','v','ś','ṣ','s','h','n','m','ṅ','ñ','ṇ'];if(cons.includes(w2[0]))return{s2:w2[0]};return null;},
+   apply(w1,w2,m){return{output:w1.slice(0,-1)+'ṃ'+w2,steps:['Final /m/ before consonant /'+m.s2+'/','Mo\'nusvāraḥ: m → anusvāra /ṃ/']};}},
+
+  {id:"P8.4.62",name:"Khari ca (final devoicing)",type:"Consonant sandhi",priority:22,
+   sutra:"khari ca",
+   desc:"Before a voiceless consonant or at pause, all voiced stops lose voicing: d→t, g→k, b→p, j→c, ḍ→ṭ.",
+   example:{devanagari:"वाक् शुद्धिः",source:"Sanskrit ethical literature",iast:"vāg + śuddhi → vāk śuddhi (g+ś → k, devoicing before sibilant)",note:"Dictionary entries show the pausa (pause) form — which is always devoiced"},
+   panini:"Khari ca: 'before khar (voiceless consonants) and at pause.' Dictionary citation forms are pausa forms. The voiced final appears only before voiced sounds; otherwise the voiceless form is the default.",
+   test(w1,w2){const pairs={d:'t',g:'k',b:'p',j:'c',ḍ:'ṭ'};const vless=['k','kh','c','ch','ṭ','ṭh','t','th','p','ph','ś','ṣ','s'];for(const [vd,vl] of Object.entries(pairs)){if(w1.endsWith(vd)&&vless.includes(w2[0]))return{vd,vl,s2:w2[0]};}return null;},
+   apply(w1,w2,m){return{output:w1.slice(0,-m.vd.length)+m.vl+w2,steps:['Final /'+m.vd+'/ before voiceless /'+m.s2+'/','Khari ca: devoicing','/'+m.vd+'/ → /'+m.vl+'/']};}},
+
+  {id:"P8.4.65",name:"Ṇatva (after r/ṣ)",type:"Consonant sandhi",priority:23,
+   sutra:"ṇo naḥ",
+   desc:"After ṛ, ṝ, r, or ṣ, dental n becomes retroflex ṇ (ṇatva). The retroflex influence spreads rightward.",
+   example:{devanagari:"रामायण",source:"Vālmīki Rāmāyaṇa (title)",iast:"rāma + ayana → rāmāyaṇa (r triggers ṇatva: n→ṇ)",note:"Also kṛṣṇa (ṣ triggers ṇatva on following n)"},
+   panini:"P8.4.1–39 detail ṇatva conditions. The retroflex 'infection' spreads rightward across certain consonants. Blocked by intervening dental stops and labials. One of Sanskrit's most distinctive phonological features.",
+   test(w1,w2){const retro=['ṛ','ṝ','r','ṣ'];const lastR=retro.find(r=>w1.endsWith(r));if(!lastR)return null;if(w2.startsWith('n'))return{trigger:lastR};return null;},
+   apply(w1,w2,m){return{output:w1+w2.replace(/^n/,'ṇ'),steps:['Retroflex trigger /'+m.trigger+'/ at word 1 end','Dental /n/ at word 2 start','Ṇatva: /n/ → /ṇ/']};}},
+
+  {id:"P8.4.63",name:"Ścutva (palatal assimilation)",type:"Consonant sandhi",priority:24,
+   sutra:"ścut",
+   desc:"Dental stops t, th, d, dh, n before a palatal c, ch, j, jh, ś assimilate to the palatal series: t→c, d→j, n→ñ.",
+   example:{devanagari:"सच्चित्",source:"Compound: sat + cit",iast:"sat + cit → sac cit (t+c → c, palatal assimilation)",note:"Also: tat + jñānam → taj jñānam (t+j → j); very common in Sanskrit"},
+   panini:"Ścut: 'dental becomes palatal (ścu) before palatal.' One of the most frequently triggered consonant sandhi rules. The palatal series {c, ch, j, jh, ś} attracts preceding dentals to its own place.",
+   test(w1,w2){const dm={t:'c',d:'j',n:'ñ',th:'ch',dh:'jh'};const pal=['c','ch','j','jh','ś'];for(const [den,p] of Object.entries(dm)){if(w1.endsWith(den)&&pal.includes(w2[0]))return{den,pal:p,s2:w2[0]};}return null;},
+   apply(w1,w2,m){return{output:w1.slice(0,-m.den.length)+m.pal+w2,steps:['Dental /'+m.den+'/ before palatal /'+m.s2+'/','Ścutva: palatal assimilation','/'+m.den+'/ → /'+m.pal+'/']};}},
+
+  {id:"P8.4.41b",name:"Lateral assimilation (ṭ/ḍ + l)",type:"Consonant sandhi",priority:25,
+   sutra:"ato lopa",
+   desc:"Retroflex ṭ or ḍ before lateral l assimilates to l.",
+   example:{devanagari:"षट् लोकाः",source:"Sanskrit grammatical example",iast:"ṣaṭ + lokāḥ → ṣal lokāḥ (ṭ+l → l)",note:"Lateral consonants attract assimilation from preceding retroflex stops"},
+   panini:"Lateral assimilation is relatively rare at word boundaries. The rule reflects the general principle that l, as a lateral, has strong assimilatory force over preceding stops.",
+   test(w1,w2){if((w1.endsWith('ṭ')||w1.endsWith('ḍ'))&&w2.startsWith('l'))return{finalC:w1.slice(-1)};return null;},
+   apply(w1,w2,m){return{output:w1.slice(0,-1)+'l'+w2,steps:['Retroflex /'+m.finalC+'/ before lateral /l/','Lateral assimilation','/'+m.finalC+'/ → /l/']};}},
+
+  {id:"P8.2.62",name:"n + sibilant → ṃ + sibilant",type:"Consonant sandhi",priority:26,
+   sutra:"stau",
+   desc:"Final n before a sibilant (ś, ṣ, s) becomes anusvāra; the sibilant may then double.",
+   example:{devanagari:"तान् शत्रून्",source:"Bhagavad Gītā 1.21",iast:"tān + śatrūn → tāṃś śatrūn (n+ś → ṃś)",note:"The anusvāra + doubled sibilant cluster is common in Sanskrit verse"},
+   panini:"P8.2.62–66 handle n+sibilant. The nasal becomes moraic (anusvāra) and the sibilant may geminate. Standard in classical Sanskrit prose and verse.",
+   test(w1,w2){if(!w1.endsWith('n'))return null;if(['ś','ṣ','s'].includes(w2[0]))return{s2:w2[0]};return null;},
+   apply(w1,w2,m){return{output:w1.slice(0,-1)+'ṃ'+m.s2+w2,steps:['Final /n/ before sibilant /'+m.s2+'/','N → anusvāra; sibilant doubles','Result: /ṃ'+m.s2+'/']};}},
+
+  {id:"P8.4.45",name:"Sibilant assimilation",type:"Consonant sandhi",priority:27,
+   sutra:"śarvaṃ śari",
+   desc:"Final sibilant before a different sibilant assimilates to it: ś/s + ṣ → ṣṣ, etc.",
+   example:{devanagari:"सरस् सु",source:"Classical Sanskrit compound",iast:"saras + su → sarassu (s+s retained; ś+ṣ → ṣṣ)",note:"Each of the three Sanskrit sibilants (ś palatal, ṣ retroflex, s dental) assimilates to the following one"},
+   panini:"Śar covers the three Sanskrit sibilants. When two different sibilants meet, the first assimilates to the second's place of articulation. Sanskrit's three-sibilant system makes this a common interaction.",
+   test(w1,w2){const sib=['ś','ṣ','s'];const fs=sib.find(s=>w1.endsWith(s));if(!fs)return null;const is=sib.find(s=>w2.startsWith(s));if(!is||fs===is)return null;return{finalS:fs,initS:is};},
+   apply(w1,w2,m){return{output:w1.slice(0,-1)+m.initS+w2,steps:['Final sibilant /'+m.finalS+'/ before /'+m.initS+'/','Sibilant place assimilation','/'+m.finalS+'/ → /'+m.initS+'/']};}},
+
+  {id:"P8.2.39",name:"Voiced aspirate devoicing",type:"Consonant sandhi",priority:28,
+   sutra:"jhalopahitasya ca",
+   desc:"Voiced aspirates (gh, jh, ḍh, dh, bh) before voiceless consonants lose both voicing and aspiration.",
+   example:{devanagari:"लब्ध",source:"Sanskrit verbal form: labh + ta",iast:"labh + ta → labdha (internal); at boundary: budh + ti → butti",note:"Two features lost simultaneously: voiced aspirate becomes plain voiceless stop"},
+   panini:"Interacts with jaśtva (P8.4.58): that rule voices consonants before aspirates; this rule devoices aspirates before voiceless stops. Together they define the full voicing assimilation system.",
+   test(w1,w2){const pairs={gh:'k',jh:'c',ḍh:'ṭ',dh:'t',bh:'p'};const vless=['k','kh','c','ch','ṭ','ṭh','t','th','p','ph','ś','ṣ','s'];for(const [asp,plain] of Object.entries(pairs)){if(w1.endsWith(asp)&&vless.includes(w2[0]))return{asp,plain,s2:w2[0]};}return null;},
+   apply(w1,w2,m){return{output:w1.slice(0,-m.asp.length)+m.plain+w2,steps:['Voiced aspirate /'+m.asp+'/ before voiceless /'+m.s2+'/','Loss of voicing and aspiration','/'+m.asp+'/ → /'+m.plain+'/']};}},
+
+  {id:"P8.4.1",name:"Ṇatva in compounds (raṭu)",type:"Consonant sandhi",priority:29,
+   sutra:"raṭu",
+   desc:"Retroflex consonants ṣ, ṭ, ṭh, ḍ, ḍh, ṇ before dental n in compounds cause ṇatva: n→ṇ.",
+   example:{devanagari:"कृष्ण",source:"Bhagavad Gītā (name of the deity)",iast:"kṛṣ + na → kṛṣṇa (ṣ triggers ṇatva: n→ṇ)",note:"The name Kṛṣṇa itself is a ṇatva form; also Viṣṇu-related forms"},
+   panini:"P8.4.1 extends ṇatva to compound-internal boundaries. The retroflex 'infection' operates across morpheme boundaries. Extremely frequent — produces many of Sanskrit's characteristic ṇ forms.",
+   test(w1,w2){const retro=['ṣ','ṭ','ṭh','ḍ','ḍh','ṇ'];const lastR=retro.find(r=>w1.endsWith(r));if(!lastR)return null;if(w2.startsWith('n'))return{trigger:lastR};return null;},
+   apply(w1,w2,m){return{output:w1+w2.replace(/^n/,'ṇ'),steps:['Retroflex /'+m.trigger+'/ at word 1 end','Dental /n/ at word 2 start','Raṭu ṇatva: /n/ → /ṇ/']};}},
+
+  {id:"P8.3.22",name:"Jihvāmūlīya / Upadhmānīya (Vedic)",type:"Visarga sandhi",priority:99,
+   sutra:"ku-pu-vor visarjanīyaḥ",
+   desc:"Vedic only: visarga before k/kh becomes jihvāmūlīya (ẖ); before p/ph becomes upadhmānīya (ḫ). In classical Sanskrit, visarga is simply retained (see P8.3.32).",
+   example:{devanagari:"अग्निमीळे (ऋग्वेद)",source:"Ṛgveda 1.1.1",iast:"In Vedic recitation: namaḥ + kārya → namaẖkārya",note:"These forms are rarely written; classical texts use plain ḥ before k/p"},
+   panini:"P8.3.22 is Vedic-specific. Classical Sanskrit drops these distinctions — visarga before k/p is simply retained as ḥ (P8.3.32). This rule is included for completeness of the Vedic sandhi system.",
+   test(w1,w2){return null;},
+   apply(w1,w2,m){return{output:w1+w2,steps:['Vedic rule — not applied in classical Sanskrit parser']};}},
+];
+
+const IAST_CHARS=['ā','ī','ū','ṛ','ṝ','ḷ','ṃ','ḥ','ś','ṣ','ṭ','ḍ','ṇ','ñ','ṅ'];
+const EXAMPLES=[
+  {w1:'deva',w2:'indra'},{w1:'ca',w2:'eva'},{w1:'muni',w2:'āgacchati'},
+  {w1:'namaḥ',w2:'śivāya'},{w1:'namaḥ',w2:'te'},{w1:'rāmaḥ',w2:'vadati'},
+  {w1:'tat',w2:'ca'},{w1:'sat',w2:'cit'},{w1:'mahā',w2:'ātman'},
+  {w1:'vāk',w2:'devi'},{w1:'punaḥ',w2:'rāmaḥ'},{w1:'tān',w2:'janān'},
+  {w1:'aham',w2:'brahma'},{w1:'namaḥ',w2:'karoti'}
+];
+
+let activeInput='w1';
+
+const kbdRow=document.getElementById('kbdRow');
+IAST_CHARS.forEach(ch=>{
+  const btn=document.createElement('button');
+  btn.className='kbd-btn';btn.textContent=ch;
+  btn.onclick=()=>{const inp=document.getElementById(activeInput);const s=inp.selectionStart,e=inp.selectionEnd;inp.value=inp.value.slice(0,s)+ch+inp.value.slice(e);inp.selectionStart=inp.selectionEnd=s+ch.length;inp.focus();};
+  kbdRow.appendChild(btn);
+});
+
+document.getElementById('w1').addEventListener('focus',()=>{activeInput='w1';document.getElementById('w1').classList.add('active-field');document.getElementById('w2').classList.remove('active-field');});
+document.getElementById('w2').addEventListener('focus',()=>{activeInput='w2';document.getElementById('w2').classList.add('active-field');document.getElementById('w1').classList.remove('active-field');});
+document.getElementById('w1').classList.add('active-field');
+
+const exLinks=document.getElementById('exLinks');
+EXAMPLES.forEach(e=>{
+  const a=document.createElement('a');a.textContent=e.w1+' + '+e.w2;
+  a.onclick=()=>{document.getElementById('w1').value=e.w1;document.getElementById('w2').value=e.w2;runParser();};
+  exLinks.appendChild(a);
+});
+
+function showRuleDetail(rule){
+  document.getElementById('resultBox').classList.remove('show');
+  document.getElementById('noMatch').classList.remove('show');
+  document.getElementById('errMsg').classList.remove('show');
+  const rd=document.getElementById('ruleDetail');
+  document.getElementById('rdHeader').textContent=rule.id+' — '+rule.name+' ('+rule.sutra+')';
+  document.getElementById('rdSutra').textContent=rule.type;
+  document.getElementById('rdDesc').textContent=rule.desc;
+  const ex=rule.example;
+  document.getElementById('rdExample').innerHTML=
+    '<div class="rd-example-label">Example:</div>'+
+    '<div class="rd-devanagari">'+ex.devanagari+'</div>'+
+    '<div class="rd-source">— '+ex.source+'</div>'+
+    '<div class="rd-iast">'+ex.iast+'</div>'+
+    '<div class="rd-sandhi-note">'+ex.note+'</div>';
+  document.getElementById('rdPanini').textContent=rule.panini;
+  rd.classList.add('show');
+  rd.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+const sidebarRules=document.getElementById('sidebarRules');
+const typeOrder=['Vowel sandhi','Visarga sandhi','Consonant sandhi'];
+typeOrder.forEach(type=>{
+  const rules=RULES.filter(r=>r.type===type);
+  if(!rules.length)return;
+  const lbl=document.createElement('div');lbl.className='rule-type-label';lbl.textContent=type;
+  sidebarRules.appendChild(lbl);
+  rules.forEach(r=>{
+    const a=document.createElement('a');a.className='sidebar-rule';a.id='sr-'+r.id;
+    a.textContent=r.id+' '+r.name;
+    a.onclick=()=>{
+      document.querySelectorAll('.sidebar-rule').forEach(el=>el.classList.remove('highlighted'));
+      a.classList.add('highlighted');
+      showRuleDetail(r);
+    };
+    sidebarRules.appendChild(a);
+  });
+});
+
+function runParser(){
+  const w1=document.getElementById('w1').value.trim().toLowerCase();
+  const w2=document.getElementById('w2').value.trim().toLowerCase();
+  const err=document.getElementById('errMsg'),noM=document.getElementById('noMatch'),rb=document.getElementById('resultBox'),rd=document.getElementById('ruleDetail');
+  err.classList.remove('show');noM.classList.remove('show');rb.classList.remove('show');rd.classList.remove('show');
+  document.querySelectorAll('.sidebar-rule').forEach(el=>el.classList.remove('highlighted'));
+  if(!w1||!w2){err.textContent='Enter both words.';err.classList.add('show');return;}
+  const matches=[];
+  for(const rule of RULES){
+    if(rule.priority===99)continue;
+    const m=rule.test(w1,w2);if(m)matches.push({rule,match:m});
+  }
+  if(!matches.length){noM.classList.add('show');return;}
+  matches.sort((a,b)=>a.rule.priority-b.rule.priority);
+  const {rule,match}=matches[0];
+  const res=rule.apply(w1,w2,match);
+  document.getElementById('resultOut').textContent=res.output;
+  document.getElementById('resultRuleLink').textContent=rule.id+' — '+rule.name;
+  document.getElementById('resultSutra').textContent=rule.sutra;
+  document.getElementById('resultType').textContent=rule.type;
+  const cn=document.getElementById('conflictNote');
+  if(matches.length>1){cn.style.display='block';cn.innerHTML='<b>Rule conflict:</b> '+matches.map(m=>m.rule.id).join(', ')+' — applied highest priority.';}
+  else{cn.style.display='none';}
+  document.getElementById('stepsList').innerHTML=res.steps.map(s=>'<li>'+s+'</li>').join('');
+  document.getElementById('explainText').textContent=rule.explanation||rule.desc;
+  document.getElementById('explainPanini').textContent=rule.panini;
+  rb.classList.add('show');
+  const srEl=document.getElementById('sr-'+rule.id);
+  if(srEl){srEl.classList.add('highlighted');srEl.scrollIntoView({behavior:'smooth',block:'nearest'});}
+}
+
+function clearAll(){
+  document.getElementById('w1').value='';document.getElementById('w2').value='';
+  ['errMsg','noMatch','resultBox','ruleDetail'].forEach(id=>document.getElementById(id).classList.remove('show'));
+  document.querySelectorAll('.sidebar-rule').forEach(el=>el.classList.remove('highlighted'));
+  document.getElementById('w1').focus();
+}
+
+document.getElementById('w1').addEventListener('keydown',e=>{if(e.key==='Enter')runParser();});
+document.getElementById('w2').addEventListener('keydown',e=>{if(e.key==='Enter')runParser();});
+</script>
+</body>
+</html>
